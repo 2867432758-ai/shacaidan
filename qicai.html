@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>器材点单系统 - 持久化数据版</title>
+    <style>
+        /* 样式代码 */
+        html, body {
+            height: 100%; 
+            margin: 0; 
+            padding: 0;
+        }
+
+        :root { 
+            --primary: #2c3e50; 
+            --accent: #3498db; 
+            --bg: #f2f4f7; 
+            --highlight-orange: #e67e22; 
+            --sidebar-active-bg: #f0f5ff; 
+        }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            font-family: -apple-system, sans-serif; 
+            background: #333; 
+            height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+        }
+        
+        #app { 
+            width: 100%; 
+            max-width: 450px; 
+            background: #f7f8fa; 
+            height: 100%; 
+            display: flex; 
+            flex-direction: column; 
+            position: relative; 
+        }
+        
+        .header { 
+            height: 55px; background: white; display: flex; align-items: center; justify-content: space-between; 
+            padding: 0 15px; border-bottom: 1px solid #ddd; color: var(--primary); z-index: 10;
+        }
+        .header-title { font-weight: bold; font-size: 18px; }
+        .btn-custom-add {
+            background: var(--accent); color: white; border: none; padding: 6px 12px; 
+            border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer;
+        }
+
+        .content { flex: 1; display: flex; overflow: hidden; }
+        .sidebar { width: 85px; background: #fff; border-right: 1px solid #eee; overflow-y: auto; flex-shrink: 0; }
+        
+        .menu-item { 
+            padding: 18px 5px; 
+            text-align: center; 
+            font-size: 13px; 
+            color: #666; 
+            border-bottom: 1px solid #f5f5f5; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            position: relative; 
+        }
+        .menu-item.active { 
+            background: var(--sidebar-active-bg); 
+            color: var(--accent); 
+            font-weight: bold; 
+            border-left: 4px solid var(--accent); 
+        }
+        
+        .edit-cat-btn {
+            position: absolute;
+            top: 5px;
+            right: 2px;
+            font-size: 10px;
+            cursor: pointer;
+            color: #bbb;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .menu-item:hover .edit-cat-btn { opacity: 1; }
+        .menu-item.active .edit-cat-btn { opacity: 1; color: var(--accent); }
+        
+        #add-category-item {
+            color: #666; 
+            font-size: 24px;
+            font-weight: bold;
+            padding: 10px 5px;
+            cursor: pointer;
+            line-height: 1;
+            border-bottom: none; 
+        }
+
+        .list-area { flex: 1; padding: 12px; overflow-y: auto; padding-bottom: 100px; }
+        .cat-title { font-size: 14px; color: #333; margin: 15px 0 10px 0; font-weight: bold; border-left: 3px solid var(--accent); padding-left: 8px; }
+        
+        .card { background: white; padding: 15px; margin-bottom: 12px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+        .card-row { display: flex; justify-content: space-between; align-items: flex-start; }
+        .name { font-weight: bold; color: var(--primary); font-size: 15px; line-height: 1.4; }
+        .desc { font-size: 12px; color: #999; margin-top: 4px; }
+        
+        .card-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+        .btn-config { font-size: 12px; padding: 5px 12px; border: 1px solid #ddd; background: white; border-radius: 15px; color: #666; cursor: pointer; }
+        
+        .counter { display: flex; align-items: center; gap: 10px; }
+        .btn-circle { width: 26px; height: 26px; border-radius: 50%; border: none; display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 16px; flex-shrink: 0; }
+        .btn-add { background: var(--accent); color: white; } 
+        .btn-sub { background: white; border: 1px solid #ddd; color: #666; }
+        .count-num { font-weight: bold; min-width: 20px; text-align: center; font-size: 15px; }
+        
+        .footer-fixed { 
+            position: fixed; 
+            bottom: 0;
+            width: 100%; 
+            max-width: 450px; 
+            left: 0;
+            right: 0;
+            margin: 0 auto; 
+            
+            background: #ffffff; 
+            color: #333; 
+            padding: 15px 20px; 
+            border-top: 1px solid #eee; 
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1); 
+            z-index: 99; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        
+        .footer-fixed .gen-btn { 
+            background: var(--accent); 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            font-size: 14px; 
+            cursor: pointer;
+        }
+
+        .footer-fixed #total { 
+            font-weight: bold; 
+            font-size: 18px; 
+            margin-left: 5px; 
+            color: var(--highlight-orange); 
+        }
+
+        .conf-tag { font-size: 11px; color: var(--highlight-orange); margin-top: 6px; background: #fff5e6; padding: 3px 6px; border-radius: 4px; display: none; max-width: 100%; }
+        
+        .modal-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; display: none; justify-content: center; align-items: center; }
+        .modal { background: white; width: 85%; padding: 20px; border-radius: 12px; animation: pop 0.2s; }
+        @keyframes pop { from{transform:scale(0.9)} to{transform:scale(1)} }
+        
+        .opt-row { display: block; margin: 10px 0; font-size: 14px; padding: 8px; background: #f9f9f9; border-radius: 6px; }
+        .note-box { width: 100%; border: 1px solid #ddd; padding: 10px; margin-top: 10px; border-radius: 6px; font-family: inherit; }
+        .modal-btns { margin-top: 20px; text-align: right; display: flex; justify-content: flex-end; gap: 10px; }
+        .modal-btns .m-btn:last-child { background: var(--accent); color: white; } 
+        .modal-btns .m-btn:first-child { background: #eee; color: #666; } 
+
+        .modal-input-group { margin-bottom: 15px; }
+        .modal-input-group label { display: block; font-size: 13px; color: #666; margin-bottom: 5px; }
+        .modal-input-group input[type="text"], 
+        .modal-input-group textarea,
+        .modal-input-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        #cart-detail-modal .modal {
+            max-height: 80%;
+            overflow-y: hidden;
+        }
+        #cart-list-container {
+            max-height: 300px; 
+            overflow-y: auto;
+            margin-top: 10px;
+            padding-right: 5px;
+        }
+        .cart-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .cart-item-row:last-child {
+            border-bottom: none;
+        }
+        .item-name-conf {
+            flex: 1;
+            margin-right: 15px;
+            line-height: 1.3;
+        }
+        .item-name-conf .name {
+            font-weight: bold;
+            font-size: 14px;
+            color: var(--primary);
+        }
+        .conf-tag-mini {
+            font-size: 10px;
+            color: #999;
+            margin-top: 3px;
+        }
+        .cart-item-row .counter {
+            gap: 5px; 
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="header">
+        <div class="header-title">器材点单系统</div>
+        <button class="btn-custom-add" onclick="openEditModal(null)">+ 新增物品</button>
+    </div>
+    
+    <div class="content">
+        <div class="sidebar" id="sidebar">
+            <div id="sidebar-menu">
+            </div>
+        </div>
+        <div class="list-area" id="main">
+            </div>
+    </div>
+    
+    <div class="footer-fixed">
+        <div onclick="openCartDetailModal()" style="cursor:pointer; display:flex; align-items:center;">
+            已选数量: <span id="total">0</span>
+        </div>
+        <button class="gen-btn" onclick="printPDF()">生成 PDF</button>
+    </div>
+</div>
+
+<div class="modal-bg" id="modal">
+    <div class="modal">
+        <h3 id="m-title" style="margin-top:0; color:#2c3e50;">配置选项</h3>
+        <div id="m-opts" style="max-height: 200px; overflow-y:auto;"></div>
+        <textarea id="m-note" class="note-box" rows="2" placeholder="输入其他备注..."></textarea>
+        <div class="modal-btns">
+            <button class="m-btn" onclick="closeModal('modal')">取消</button>
+            <button class="m-btn" onclick="saveConfig()">确认</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-bg" id="edit-detail-modal">
+    <div class="modal">
+        <h3 id="edit-title" style="margin-top:0; color:#2c3e50;">编辑物品详情</h3>
+        
+        <div class="modal-input-group" id="category-selector-group">
+            <label for="edit-category-selector">选择目标分类</label>
+            <select id="edit-category-selector"></select>
+        </div>
+        
+        <div class="modal-input-group">
+            <label for="edit-name">物品名称</label>
+            <input type="text" id="edit-name">
+        </div>
+        
+        <div class="modal-input-group">
+            <label for="edit-desc">特点描述 (浅灰色小字/特征)</label>
+            <textarea id="edit-desc" rows="2" placeholder="例如：4500万像素，高速连拍20张/秒"></textarea>
+        </div>
+        
+        <div class="modal-btns">
+            <button class="m-btn" onclick="closeModal('edit-detail-modal')">取消</button>
+            <button class="m-btn" onclick="saveEditDetails()">确认并保存</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-bg" id="cart-detail-modal">
+    <div class="modal">
+        <h3 style="margin-top:0; color:#2c3e50;">已选物品清单</h3>
+        <div id="cart-list-container"></div>
+        
+        <div class="modal-btns" style="margin-top: 15px;">
+            <button class="m-btn" onclick="closeModal('cart-detail-modal')">关闭</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// =========================================================
+// === 1. 数据配置 (原始硬编码数据) ===
+// =========================================================
+let DB_DEFAULT = [
+    { cat: "📸 相机/机身", items: [
+        {id:101, n:"Canon EOS R3", d:"旗舰级，24MP，30FPS 连拍，专业体育/新闻", t:"camera"},
+        {id:102, n:"SONY a1", d:"旗舰级，50MP，8K/30p，30FPS 电子快门，高解析/速度全能", t:"camera"},
+        {id:103, n:"Nikon Z9", d:"旗舰级，45.7MP，全电控快门，8K/60p，坚固耐用", t:"camera"},
+        {id:104, n:"Fujifilm GFX 100 II", d:"102MP 中画幅，4K/60p 视频，顶级画质，棚拍首选", t:"camera"},
+        {id:105, n:"SONY FX6", d:"全画幅电影机，4K 120p，S-Cinetone，电子 ND，轻便影视机", t:"camera"},
+        {id:106, n:"Canon EOS C70", d:"Super 35mm 电影机，RF卡口，双像素对焦，Log拍摄", t:"camera"},
+    ]},
+    { cat: "🔭 镜头/光学", items: [
+        {id:201, n:"Canon RF 24-70mm f/2.8L IS", d:"恒定大三元，通用焦段，光学防抖", t:"camera"},
+        {id:202, n:"Sony FE 70-200mm f/2.8 GM OSS II", d:"专业长焦，轻量化，极速对焦，体育/人像必备", t:"camera"},
+        {id:203, n:"Sigma Art 35mm f/1.4 DG DN", d:"人文定焦，大光圈，锐度高，柔美虚化", t:"camera"},
+        {id:204, n:"Canon RF 15-35mm f/2.8L IS", d:"超广角大三元，风光/建筑/室内，优秀的边缘画质", t:"camera"},
+        {id:205, n:"Sony FE 50mm f/1.2 GM", d:"超大光圈定焦，顶级解析力，极致焦外", t:"camera"},
+        {id:206, n:"Canon TS-E 50mm f/2.8L Macro", d:"移轴镜头，用于建筑/静物校正透视", t:"camera"},
+        {id:207, n:"ND 滤镜套件 (82mm)", d:"Nisi V6系统，CPL+ND8/64/1000，曝光控制", t:"gen"}
+    ]},
+    { cat: "⚡ 影室闪光/TTL", items: [
+        {id:301, n:"Profoto Pro-11", d:"4800Ws 影棚电源箱，超快回电，HSS，适用于大型商业影棚", t:"light"},
+        {id:302, n:"Profoto B10 Plus", d:"500W 便携锂电外拍灯，小巧强劲，HSS/TTL，可拍视频", t:"light"},
+        {id:303, n:"Godox AD600Pro", d:"600Ws 锂电外拍灯，1/10000s 闪光，Bowens卡口，高性价比", t:"light"},
+        {id:304, n:"Profoto D2 500Ws AirTTL", d:"一体式影棚灯，超快凝固，1/63,000s 闪光时长", t:"light"},
+        {id:305, n:"Godox V1s/c/n", d:"圆形灯头机顶灯，TTL/HSS，磁吸附件系统，适用于多灯佈局", t:"light"}
+    ]},
+    { cat: "💡 常亮灯/LED", items: [
+        {id:401, n:"Aputure Light Storm 600x Pro", d:"600W 双色温 COB LED，高显色 CRI 96+，Bowens卡口", t:"light"},
+        {id:402, n:"ARRI SkyPanel S60-C", d:"600W 全彩柔光LED面板，专业影视级，HMI级亮度", t:"light"},
+        {id:403, n:"NANLITE Forza 720", d:"800W 日光 COB LED，超高亮度，适用于大场景照明", t:"light"},
+        {id:404, n:"Astera Titan Tube Kit (8x)", d:"8支全彩LED灯条套装，无线控制，用于氛围光/布景", t:"light"},
+        {id:405, n:"Aputure Amaran 200x", d:"200W 双色温 COB LED，轻量化备用灯/辅灯", t:"light"}
+    ]},
+    { cat: "柔光/塑光工具", items: [
+        {id:501, n:"Profoto RFi Softbox Octa 5' (150cm)", d:"五尺八角柔光箱，大面积柔光，Profoto卡口，用于主光", t:"soft"},
+        {id:502, n:"Profoto OCF Beauty Dish (Silver)", d:"银色雷达罩，光质硬朗且有对比度，人像/时尚摄影专用", t:"hard"},
+        {id:503, n:"Bowens Octabox 120cm", d:"保荣卡口八角柔光箱，通用性强，适用于 Godox 灯头", t:"soft"},
+        {id:504, n:"Chimera Lantern 40\"", d:"球形柔光灯罩 (40寸)，360度全方位照明，用于环境光", t:"soft"},
+        {id:505, n:"Barn Door 四叶挡板 (Bowens)", d:"用于控制光线方向和切割光束，塑形硬光", t:"hard"},
+        {id:506, n:"Grid for Profoto Octa 5'", d:"用于Profoto 150cm柔光箱，精确控制光线溢出", t:"hard"}
+    ]},
+    { cat: "🛠 支架/Grip", items: [
+        {id:601, n:"Matthews C-Stand (40吋)", d:"专业魔术腿，带魔术头和横杆，用于悬挂和支撑器材", t:"stand"}, 
+        {id:602, n:"Manfrotto 509 Fluid Head + Carbon Tripod", d:"专业液压云台，适用于影视拍摄，平滑移动", t:"stand"},
+        {id:603, n:"Avenger D600 Boom Arm (4m)", d:"重型摇臂/吊杆，可伸出4米，用于高角度或特殊机位", t:"stand"},
+        {id:604, n:"蝴蝶布架 2x2m (带柔光/黑布)", d:"大型控光工具，用于制造大型柔光或旗板遮光", t:"soft"},
+        {id:605, n:"大力夹/魔术臂", d:"多功能固定夹具，连接附件和固定小型灯具", t:"gen"}
+    ]},
+    { cat: "🔋 数码/电力/线材", items: [
+        {id:701, n:"IDX V口电池 190Wh", d:"190Wh 高容量电池，用于电影机和高功率LED灯", t:"power"}, 
+        {id:702, n:"Atomos Ninja V+", d:"8K/4K 120p 外录监视器，用于高清录制和监看", t:"gen"},
+        {id:703, n:"高速CFexpress Type B卡", d:"1TB，适用于 R3/A1/Z9 等旗舰机型的极限连拍和高码率视频", t:"gen"},
+        {id:704, n:"无线图传系统 Hollyland Mars 400S Pro", d:"专业级高清无线视频传输，用于导演监看", t:"gen"},
+        {id:705, n:"PD 快充电源适配器 (100W)", d:"用于快速充电笔记本/相机/小型监视器", t:"power"}
+    ]}
+];
+
+// 智能选项配置
+const OPTS = {
+    light: ["标准罩", "电源线", "引闪器", "柔光袜/扩散片", "灯管保护罩", "Profoto/Bowens卡口转接环"],
+    soft: ["格栅(蜂窝网)", "内柔光布", "外柔光布", "柔光盘"],
+    hard: ["蜂巢/格栅", "反光片/柔光袜", "色纸/色片"],
+    stand: ["横臂", "沙袋/配重包", "轮子", "安全绳"],
+    camera: ["快装板/笼子", "SD卡/CF卡", "V口电池", "遮光斗/跟焦器", "取景器放大器"],
+    power: ["充电器", "多头线", "D-Tap转接", "电源延长线"],
+    gen: ["原包装", "备用", "说明书"]
+};
+
+// =========================================================
+// === 2. 持久化数据和初始化逻辑 (增强稳定性) ===
+// =========================================================
+let DB = []; 
+let cart = {}; 
+let itemsMap = {}; 
+let currId = null; 
+let currEditId = null; 
+
+const DB_KEY = 'equipment_db_v1';
+const CART_KEY = 'equipment_cart_v1';
+
+/**
+ * 💾 将当前 DB 数组保存到 localStorage.
+ */
+function saveDB() {
+    try {
+        localStorage.setItem(DB_KEY, JSON.stringify(DB));
+    } catch (e) {
+        console.error("保存数据库失败:", e);
+    }
+}
+
+/**
+ * 💾 从 localStorage 加载 DB 数组，如果失败则使用默认值.
+ */
+function loadDB() {
+    try {
+        const storedDB = localStorage.getItem(DB_KEY);
+        if (storedDB) {
+            DB = JSON.parse(storedDB);
+            // 关键：确保加载的数据是数组，否则重置为默认
+            if (!Array.isArray(DB)) {
+                throw new Error("Loaded DB is not an array.");
+            }
+            console.log("成功从本地存储加载器材数据库。");
+            return;
+        }
+    } catch (e) {
+        console.error("加载数据库失败或数据格式错误，将使用默认数据:", e);
+    }
+    // 如果没有存储数据或加载失败，使用默认数据并保存一次
+    DB = DB_DEFAULT;
+    saveDB(); 
+}
+
+/**
+ * 💾 将当前购物车 cart 对象保存到 localStorage.
+ */
+function saveCart() {
+    try {
+        localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    } catch (e) {
+        console.error("保存购物车失败:", e);
+    }
+}
+
+/**
+ * 💾 从 localStorage 加载 cart 对象，如果失败则使用空对象.
+ */
+function loadCart() {
+    try {
+        const storedCart = localStorage.getItem(CART_KEY);
+        if (storedCart) {
+            cart = JSON.parse(storedCart);
+            if (typeof cart !== 'object' || cart === null) {
+                throw new Error("Loaded Cart is not an object.");
+            }
+            // 筛选掉数量 <= 0 的无效项
+            for (const id in cart) {
+                if (cart[id].q <= 0) delete cart[id];
+            }
+            console.log("成功从本地存储加载购物车数据。");
+            return;
+        }
+    } catch (e) {
+        console.error("加载购物车失败，将使用空购物车:", e);
+    }
+    cart = {};
+}
+
+function init() {
+    // 关键步骤 1: 加载持久化数据 (已增强健壮性)
+    loadDB();
+    loadCart();
+    
+    let sb = "", mn = "";
+    itemsMap = {}; 
+    let activeIndex = 0;
+    
+    const activeEl = document.querySelector('#sidebar-menu .menu-item.active');
+    if (activeEl) {
+        activeIndex = parseInt(activeEl.getAttribute('data-index'));
+    }
+    
+    document.getElementById("sidebar-menu").innerHTML = '';
+
+    DB.forEach((c, i) => {
+        // *** 核心稳定增强点 ***
+        // 确保 c 存在且 c.items 存在且为数组，防止程序崩溃
+        if (!c || !c.items || !Array.isArray(c.items)) {
+            console.warn(`Category ${c ? c.cat : 'UNKNOWN'} (Index ${i}) is corrupted. Skipping/Fixing.`);
+            // 如果整个类别对象都坏了，给它一个安全的空对象结构
+            c = c || { cat: " corrupted", items: [] }; 
+            c.items = []; // 修复为空数组，防止内部循环崩溃
+        }
+        
+        // 关键：构建 itemsMap，确保自定义 ID 也能找到
+        c.items.forEach(it => { itemsMap[it.id] = it; });
+
+        const activeClass = i === activeIndex ? 'active' : '';
+        sb += `<div class="menu-item ${activeClass}" data-index="${i}" onclick="scrollCat(${i}, this)">
+                 ${c.cat.split(' ')[1] ? c.cat.split(' ')[1] : c.cat.split(' ')[0]}
+                 <span class="edit-cat-btn" onclick="event.stopPropagation(); editCategoryName(${i})">✏️</span>
+               </div>`;
+        
+        mn += `<div id="c-${i}"><div class="cat-title">${c.cat}</div>`; 
+        
+        c.items.forEach(it => {
+            mn += createCardHtml(it.id, it.n, it.d, it.t, false);
+        });
+        mn += `</div>`;
+    });
+    
+    sb += `<div class="menu-item" id="add-category-item" onclick="addNewCategory()">+</div>`;
+    
+    document.getElementById("sidebar-menu").innerHTML = sb;
+    document.getElementById("main").innerHTML = mn;
+    
+    // 关键步骤 2: 更新总数
+    updateTotal(); 
+}
+
+function createCardHtml(id, name, desc, type, isCustom=false) {
+    const safeName = name.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+    
+    const quantity = cart[id] ? cart[id].q : 0;
+    const opacity = quantity > 0 ? 1 : 0;
+    const tagDisplay = cart[id] && (cart[id].c.length > 0 || cart[id].rem) ? "inline-block" : "none";
+    let tagText = "";
+    if (cart[id]) {
+        tagText = cart[id].c.join(" / ") + (cart[id].rem ? " ("+cart[id].rem+")" : "");
+    }
+    
+    return `
+    <div class="card" id="card-${id}">
+        <div class="card-row">
+            <div style="flex:1">
+                <div class="name" onclick="openEditModal(${id})">${name}</div>
+                <div class="desc">${desc}</div>
+                <div class="conf-tag" id="tag-${id}" style="display:${tagDisplay}">${tagText}</div>
+            </div>
+        </div>
+        <div class="card-actions">
+            <button class="btn-config" onclick="openModal(${id}, '${safeName}', '${type}')">配置/备注</button>
+            <div class="counter">
+                <button class="btn-circle btn-sub" onclick="add(${id}, -1, '${safeName}', '${type}')" id="sub-${id}" style="opacity:${opacity}">-</button>
+                <span class="count-num" id="num-${id}">${quantity > 0 ? quantity : ''}</span>
+                <button class="btn-circle btn-add" onclick="add(${id}, 1, '${safeName}', '${type}')">+</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+// --------------------------------------------------------
+// 类别/物品 编辑管理功能 (增加 saveDB 调用)
+// --------------------------------------------------------
+function editCategoryName(index) {
+    const currentName = DB[index].cat;
+    let newCatName = prompt(`请输入新的类别名称 (当前: ${currentName}):`);
+    
+    if (newCatName === null) return; 
+    if (!newCatName.trim()) return alert("类别名称不能为空！");
+    
+    newCatName = newCatName.trim();
+    DB[index].cat = newCatName;
+    
+    saveDB(); // 保存 DB 更改
+    init(); 
+    const editedItem = document.querySelector(`#sidebar-menu .menu-item[data-index="${index}"]`);
+    if (editedItem) scrollCat(index, editedItem);
+}
+
+function addNewCategory() {
+    let newCatName = prompt("请输入新的大类别名称:");
+    if (!newCatName || !newCatName.trim()) return;
+
+    // 确保 items 属性存在
+    DB.push({ cat: "📦 " + newCatName.trim(), items: [] });
+    
+    saveDB(); // 保存 DB 更改
+    init(); 
+
+    const newIndex = DB.length - 1;
+    const newMenuItem = document.querySelector(`#sidebar-menu .menu-item[data-index="${newIndex}"]`);
+    if(newMenuItem) scrollCat(newIndex, newMenuItem);
+}
+
+function populateCategorySelector() {
+    const selector = document.getElementById("edit-category-selector");
+    selector.innerHTML = ''; 
+    
+    DB.forEach((cat, i) => {
+        const option = document.createElement('option');
+        option.value = i;
+        option.text = cat.cat; 
+        selector.appendChild(option);
+    });
+}
+
+function openEditModal(id) { 
+    currEditId = id; 
+    
+    const selectorGroup = document.getElementById("category-selector-group");
+    const nameInput = document.getElementById("edit-name");
+    const descInput = document.getElementById("edit-desc");
+    const title = document.getElementById("edit-title");
+    const editModal = document.getElementById("edit-detail-modal");
+
+    if (id === null) {
+        title.innerText = "新增物品 - 选择分类";
+        nameInput.value = "";
+        descInput.value = "";
+        
+        selectorGroup.style.display = 'block';
+        populateCategorySelector();
+        
+    } else {
+        const item = itemsMap[id];
+        if (!item) return alert("物品ID错误，无法编辑。");
+        title.innerText = `编辑：${item.n}`;
+        nameInput.value = item.n;
+        descInput.value = item.d;
+        
+        selectorGroup.style.display = 'none'; 
+    }
+    
+    editModal.style.display = "flex";
+}
+
+function saveEditDetails() {
+    const nameInput = document.getElementById("edit-name");
+    const newName = nameInput.value.trim();
+    const newDesc = document.getElementById("edit-desc").value.trim();
+
+    if (!newName) { return alert("物品名称不能为空！"); }
+
+    if (currEditId === null) {
+        // 新增物品
+        const selector = document.getElementById("edit-category-selector");
+        const selectedCatIndex = parseInt(selector.value, 10); 
+
+        if (isNaN(selectedCatIndex) || selectedCatIndex < 0 || selectedCatIndex >= DB.length) {
+             return alert("请选择一个有效的分类。");
+        }
+        
+        const id = Date.now(); 
+        const newItem = {id, n: newName, d: newDesc || "自定义 (无描述)", t: "gen"};
+        const catName = DB[selectedCatIndex].cat.toLowerCase();
+        if (catName.includes('机身') || catName.includes('镜头')) newItem.t = 'camera';
+        else if (catName.includes('闪光') || catName.includes('常亮')) newItem.t = 'light';
+        else if (catName.includes('支架') || catName.includes('grip')) newItem.t = 'stand';
+        else if (catName.includes('柔光') || catName.includes('塑光')) newItem.t = 'soft';
+        else newItem.t = 'gen';
+
+        itemsMap[id] = newItem; 
+        DB[selectedCatIndex].items.push(newItem);
+        
+        saveDB(); // 保存 DB 更改 (新增物品)
+        
+        let html = createCardHtml(id, newItem.n, newItem.d, newItem.t, false); 
+        
+        let div = document.createElement("div");
+        div.innerHTML = html;
+        document.getElementById(`c-${selectedCatIndex}`).appendChild(div);
+        
+        add(id, 1, newItem.n, newItem.t);
+        div.scrollIntoView({behavior:"smooth"});
+        closeModal('edit-detail-modal');
+        openModal(id, newItem.n, newItem.t); 
+
+    } else {
+        // 编辑现有物品
+        const item = itemsMap[currEditId];
+        if (!item) return;
+
+        item.n = newName;
+        item.d = newDesc;
+        if (cart[currEditId]) cart[currEditId].n = newName; 
+        
+        saveDB(); // 保存 DB 更改 (编辑名称/描述)
+        
+        // 重新渲染列表以更新显示和 onclick 参数
+        init(); 
+        closeModal('edit-detail-modal');
+    }
+}
+
+// --------------------------------------------------------
+// 数量/配置/PDF生成 (增加 saveCart 调用)
+// --------------------------------------------------------
+
+function closeModal(modalId) { 
+    document.getElementById(modalId).style.display = "none"; 
+    if (modalId === 'edit-detail-modal') currEditId = null;
+}
+
+function add(id, v, n, t) {
+    const itemData = itemsMap[id] || {n, t, d: "未知描述", id};
+    
+    if(!cart[id]) cart[id] = {n: itemData.n, t: itemData.t, q:0, c:[], rem:""};
+    
+    cart[id].q += v;
+    if(cart[id].q <= 0) { 
+        delete cart[id]; 
+        updateView(id, 0); 
+    } else {
+        updateView(id, cart[id].q);
+    }
+    updateTotal();
+    saveCart(); // 保存 Cart 更改
+}
+
+function updateTotal() {
+    let total = 0;
+    for(let k in cart) total += cart[k].q;
+    document.getElementById("total").innerText = total;
+}
+
+function updateView(id, q) {
+    let num = document.getElementById("num-"+id);
+    let sub = document.getElementById("sub-"+id);
+    let tag = document.getElementById("tag-"+id);
+    
+    if(num) num.innerText = q > 0 ? q : "";
+    if(sub) sub.style.opacity = q > 0 ? 1 : 0;
+
+    if(tag && q === 0) {
+        tag.innerText = '';
+        tag.style.display = 'none';
+    }
+}
+
+function openModal(id, name, type) {
+    if(!cart[id]) add(id, 1, name, type);
+    currId = id;
+    document.getElementById("m-title").innerText = name + " - 配置";
+    document.getElementById("m-note").value = cart[id].rem;
+    
+    let html = "";
+    const options = OPTS[type] || OPTS.gen; 
+
+    options.forEach(o => {
+        let chk = cart[id].c.includes(o) ? "checked" : "";
+        html += `<label class="opt-row"><input type="checkbox" value="${o}" ${chk}> ${o}</label>`;
+    });
+    document.getElementById("m-opts").innerHTML = html;
+    document.getElementById("modal").style.display = "flex";
+}
+
+function saveConfig() {
+    let c = [];
+    document.querySelectorAll("#m-opts input:checked").forEach(i => c.push(i.value));
+    cart[currId].c = c;
+    cart[currId].rem = document.getElementById("m-note").value;
+    
+    let tag = document.getElementById("tag-"+currId);
+    let txt = c.join(" / ") + (cart[currId].rem ? ` (${cart[currId].rem})` : "");
+    if(tag) {
+        tag.innerText = txt;
+        tag.style.display = txt.trim() ? "inline-block" : "none";
+    }
+    closeModal('modal');
+    saveCart(); // 保存 Cart 更改
+}
+
+function scrollCat(i, el) {
+    document.querySelectorAll(".menu-item").forEach(e=>e.classList.remove("active"));
+    el.classList.add("active");
+    const targetDiv = document.getElementById("c-"+i);
+    if (targetDiv) {
+        targetDiv.scrollIntoView({behavior:"smooth"});
+    }
+}
+
+/**
+ * 🎨 打印/生成 PDF 文档
+ */
+function printPDF() {
+    if(Object.keys(cart).length === 0) return alert("请先选择器材");
+    
+    let rows = "";
+    Object.values(cart).forEach(item => {
+        let conf = item.c.join(" / ") + (item.rem ? ` (${item.rem})` : "");
+        rows += `<tr>
+            <td style="font-weight:bold; color:#2c3e50">${item.n}</td>
+            <td style="text-align:center; font-weight:bold; font-size:16px">${item.q}</td>
+            <td style="color:${conf?'#333':'#999'}">${conf || '标准配置'}</td>
+        </tr>`;
+    });
+
+    let html = `
+    <html>
+    <head>
+        <title>器材清单</title>
+        <style>
+            @media print {
+                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                tr:nth-child(even) { background-color: #f2f2f2 !important; }
+                th { background-color: #2c3e50 !important; color: white !important; }
+            }
+            body { font-family: "PingFang SC", sans-serif; padding: 30px; }
+            h1 { text-align: center; color: #2c3e50; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+            th { background-color: #2c3e50; color: white; padding: 10px; text-align: left; }
+            td { padding: 10px; border-bottom: 1px solid #ddd; }
+            
+            tr:nth-child(even) { background-color: #f2f2f2; }
+            
+            .footer { margin-top: 40px; text-align: right; font-size: 12px; color: #888; }
+        </style>
+    </head>
+    <body>
+        <h1>器材出库清单</h1>
+        <table>
+            <thead>
+                <tr><th width="40%">名称</th><th width="10%" style="text-align:center">数量</th><th width="50%">配置 / 备注</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+        <div class="footer">生成时间: ${new Date().toLocaleString()}</div>
+        <script>window.onload=function(){window.print()}<\/script>
+    </body>
+    </html>`;
+    
+    let w = window.open();
+    w.document.write(html);
+    w.document.close();
+}
+
+// --------------------------------------------------------
+// 购物车详情弹窗功能 
+// --------------------------------------------------------
+
+function openCartDetailModal() {
+    const listContainer = document.getElementById('cart-list-container');
+    let html = '';
+
+    if (Object.keys(cart).length === 0) {
+        html = '<p style="text-align:center; color:#666; margin-top:10px;">购物车是空的。</p>';
+    } else {
+        for (const id in cart) {
+            const item = cart[id];
+            // 确保 itemData 存在，以防万一
+            const itemData = itemsMap[id] || {n: item.n, t: item.t}; 
+            const safeName = itemData.n.replace(/'/g, '&#39;'); 
+            
+            const confDetails = item.c.join(' / ') + (item.rem ? ` (${item.rem})` : '');
+
+            html += `
+            <div class="c
