@@ -216,6 +216,7 @@
 </head>
 <body>
 
+
 <div id="app">
     <div class="header">
         <div class="header-title">器材点单系统</div>
@@ -238,6 +239,7 @@
         <button class="gen-btn" onclick="printPDF()">生成 PDF</button>
     </div>
 </div>
+
 
 <div class="modal-bg" id="modal">
     <div class="modal">
@@ -287,6 +289,7 @@
         </div>
     </div>
 </div>
+
 
 <script>
 // =========================================================
@@ -359,6 +362,7 @@ const OPTS = {
     gen: ["原包装", "备用", "说明书"]
 };
 
+
 // =========================================================
 // === 2. 持久化数据和初始化逻辑 (增强稳定性) ===
 // =========================================================
@@ -370,6 +374,7 @@ let currEditId = null;
 
 const DB_KEY = 'equipment_db_v1';
 const CART_KEY = 'equipment_cart_v1';
+
 
 /**
  * 💾 将当前 DB 数组保存到 localStorage.
@@ -440,6 +445,7 @@ function loadCart() {
     cart = {};
 }
 
+
 function init() {
     // 关键步骤 1: 加载持久化数据 (已增强健壮性)
     loadDB();
@@ -449,6 +455,7 @@ function init() {
     itemsMap = {}; 
     let activeIndex = 0;
     
+    // 尝试保持激活的侧边栏状态，但如果找不到元素则默认激活第一个
     const activeEl = document.querySelector('#sidebar-menu .menu-item.active');
     if (activeEl) {
         activeIndex = parseInt(activeEl.getAttribute('data-index'));
@@ -457,21 +464,23 @@ function init() {
     document.getElementById("sidebar-menu").innerHTML = '';
 
     DB.forEach((c, i) => {
-        // *** 核心稳定增强点 ***
-        // 确保 c 存在且 c.items 存在且为数组，防止程序崩溃
+        // *** 核心稳定增强点：数据结构校验 ***
         if (!c || !c.items || !Array.isArray(c.items)) {
             console.warn(`Category ${c ? c.cat : 'UNKNOWN'} (Index ${i}) is corrupted. Skipping/Fixing.`);
-            // 如果整个类别对象都坏了，给它一个安全的空对象结构
             c = c || { cat: " corrupted", items: [] }; 
-            c.items = []; // 修复为空数组，防止内部循环崩溃
+            c.items = []; 
         }
         
         // 关键：构建 itemsMap，确保自定义 ID 也能找到
         c.items.forEach(it => { itemsMap[it.id] = it; });
 
-        const activeClass = i === activeIndex ? 'active' : '';
+        // 默认激活第一个，除非之前有激活项
+        const activeClass = i === 0 ? 'active' : ''; 
+        // 针对重命名后，侧边栏可能只显示图标/缩写的问题进行优化
+        const catName = c.cat.split(' ').length > 1 ? c.cat.split(' ')[1] : c.cat.split(' ')[0];
+
         sb += `<div class="menu-item ${activeClass}" data-index="${i}" onclick="scrollCat(${i}, this)">
-                 ${c.cat.split(' ')[1] ? c.cat.split(' ')[1] : c.cat.split(' ')[0]}
+                 ${catName}
                  <span class="edit-cat-btn" onclick="event.stopPropagation(); editCategoryName(${i})">✏️</span>
                </div>`;
         
@@ -488,9 +497,16 @@ function init() {
     document.getElementById("sidebar-menu").innerHTML = sb;
     document.getElementById("main").innerHTML = mn;
     
+    // 强制滚动到激活项（默认第一个）
+    const initialActive = document.querySelector('#sidebar-menu .menu-item.active');
+    if (initialActive) {
+        initialActive.scrollIntoView({ behavior: 'auto', block: 'center' });
+    }
+
     // 关键步骤 2: 更新总数
     updateTotal(); 
 }
+
 
 function createCardHtml(id, name, desc, type, isCustom=false) {
     const safeName = name.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
@@ -578,6 +594,7 @@ function openEditModal(id) {
     const title = document.getElementById("edit-title");
     const editModal = document.getElementById("edit-detail-modal");
 
+
     if (id === null) {
         title.innerText = "新增物品 - 选择分类";
         nameInput.value = "";
@@ -598,6 +615,7 @@ function openEditModal(id) {
     
     editModal.style.display = "flex";
 }
+
 
 function saveEditDetails() {
     const nameInput = document.getElementById("edit-name");
@@ -624,6 +642,7 @@ function saveEditDetails() {
         else if (catName.includes('柔光') || catName.includes('塑光')) newItem.t = 'soft';
         else newItem.t = 'gen';
 
+
         itemsMap[id] = newItem; 
         DB[selectedCatIndex].items.push(newItem);
         
@@ -633,10 +652,22 @@ function saveEditDetails() {
         
         let div = document.createElement("div");
         div.innerHTML = html;
-        document.getElementById(`c-${selectedCatIndex}`).appendChild(div);
-        
+        // 如果是新增物品，将其添加到对应分类的末尾
+        const targetCategoryDiv = document.getElementById(`c-${selectedCatIndex}`);
+        if(targetCategoryDiv) {
+            targetCategoryDiv.appendChild(div);
+        } else {
+            // 如果目标分类DIV不存在，重新初始化整个列表
+            init(); 
+        }
+
+        // 自动将新增物品的数量设为 1，并弹出配置窗口
         add(id, 1, newItem.n, newItem.t);
-        div.scrollIntoView({behavior:"smooth"});
+        
+        // 尝试滚动到新添加的物品
+        const newCard = document.getElementById(`card-${id}`);
+        if(newCard) newCard.scrollIntoView({behavior:"smooth"});
+        
         closeModal('edit-detail-modal');
         openModal(id, newItem.n, newItem.t); 
 
@@ -682,11 +713,13 @@ function add(id, v, n, t) {
     saveCart(); // 保存 Cart 更改
 }
 
+
 function updateTotal() {
     let total = 0;
     for(let k in cart) total += cart[k].q;
     document.getElementById("total").innerText = total;
 }
+
 
 function updateView(id, q) {
     let num = document.getElementById("num-"+id);
@@ -701,6 +734,7 @@ function updateView(id, q) {
         tag.style.display = 'none';
     }
 }
+
 
 function openModal(id, name, type) {
     if(!cart[id]) add(id, 1, name, type);
@@ -735,6 +769,7 @@ function saveConfig() {
     saveCart(); // 保存 Cart 更改
 }
 
+
 function scrollCat(i, el) {
     document.querySelectorAll(".menu-item").forEach(e=>e.classList.remove("active"));
     el.classList.add("active");
@@ -743,6 +778,7 @@ function scrollCat(i, el) {
         targetDiv.scrollIntoView({behavior:"smooth"});
     }
 }
+
 
 /**
  * 🎨 打印/生成 PDF 文档
@@ -759,6 +795,7 @@ function printPDF() {
             <td style="color:${conf?'#333':'#999'}">${conf || '标准配置'}</td>
         </tr>`;
     });
+
 
     let html = `
     <html>
@@ -799,24 +836,10 @@ function printPDF() {
     w.document.close();
 }
 
+
 // --------------------------------------------------------
 // 购物车详情弹窗功能 
 // --------------------------------------------------------
 
 function openCartDetailModal() {
-    const listContainer = document.getElementById('cart-list-container');
-    let html = '';
-
-    if (Object.keys(cart).length === 0) {
-        html = '<p style="text-align:center; color:#666; margin-top:10px;">购物车是空的。</p>';
-    } else {
-        for (const id in cart) {
-            const item = cart[id];
-            // 确保 itemData 存在，以防万一
-            const itemData = itemsMap[id] || {n: item.n, t: item.t}; 
-            const safeName = itemData.n.replace(/'/g, '&#39;'); 
-            
-            const confDetails = item.c.join(' / ') + (item.rem ? ` (${item.rem})` : '');
-
-            html += `
-            <div class="c
+    const li
